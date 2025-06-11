@@ -1,8 +1,19 @@
-import { View, Text, TextInput, Button, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from 'react-native';
 import { useEffect, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/src/context/AuthContext';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase-constants';
 
 export default function AccountSettingsScreen() {
   const { session } = useAuth();
@@ -12,13 +23,17 @@ export default function AccountSettingsScreen() {
   useEffect(() => {
     const loadProfile = async () => {
       if (!session?.user) return;
+
       const { data, error } = await supabase
         .from('profiles')
         .select('bio, avatar_url')
         .eq('id', session.user.id)
         .single();
 
-      if (!error && data) {
+      if (error) {
+        console.error('Error loading profile:', error);
+        Alert.alert('Error', 'Failed to load profile.');
+      } else if (data) {
         setBio(data.bio || '');
         setAvatarUrl(data.avatar_url);
       }
@@ -29,12 +44,14 @@ export default function AccountSettingsScreen() {
 
   const handleSave = async () => {
     if (!session?.user) return;
+
     const { error } = await supabase
       .from('profiles')
       .update({ bio })
       .eq('id', session.user.id);
 
     if (error) {
+      console.error('Bio update error:', error);
       Alert.alert('Error', 'Failed to update profile.');
     } else {
       Alert.alert('Saved', 'Profile saved!');
@@ -43,61 +60,111 @@ export default function AccountSettingsScreen() {
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images, // still works despite deprecation warning
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 1,
+      base64: true,
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      const file = {
-        uri: result.assets[0].uri,
-        type: 'image/jpeg',
-        name: `avatar-${Date.now()}.jpg`,
-      };
+      const asset = result.assets[0];
 
-      const response = await fetch(file.uri);
-      const blob = await response.blob();
+      try {
+        if (!session?.user) return;
 
-      if (!session?.user) return;
-      const user = session.user;
+        const filePath = `${session.user.id}/${Date.now()}.jpg`;
 
-      const filePath = `${user.id}/${Date.now()}.jpg`;
+        if (!asset.base64) {
+          throw new Error('Base64 data missing from asset');
+        }
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, blob, {
-          upsert: true,
+        const binary = atob(asset.base64);
+        const byteArray = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          byteArray[i] = binary.charCodeAt(i);
+        }
+
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+
+        if (!accessToken) {
+          console.error('No access token available');
+          Alert.alert('Error', 'Not authenticated.');
+          return;
+        }
+
+        const supabaseAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          },
         });
 
-      if (uploadError) {
-        console.error('Avatar upload error:', uploadError);
-        Alert.alert('Error', 'Failed to upload avatar.');
-        return;
-      }
+        console.log('Uploading with UID:', session.user.id);
+        console.log('File path:', filePath);
+        console.log('Byte length:', byteArray.length);
 
-      // 👇 manually set the `owner` on the storage.objects row
-      const { error: ownerError } = await supabase
-        .from('storage.objects')
-        .update({ owner: user.id })
-        .eq('bucket_id', 'avatars')
-        .eq('name', filePath.split('/').pop());
+        const { error: uploadError } = await supabaseAuthClient.storage
+          .from('avatars')
+          .upload(filePath, byteArray.buffer, {
+            contentType: 'image/jpeg',
+            upsert: true,
+          });
 
-      if (ownerError) {
-        console.error('Failed to update owner on storage object:', ownerError);
-      }
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          Alert.alert('Error', 'Failed to upload avatar.');
+          return;
+        }
 
-      const publicUrl = supabase.storage.from('avatars').getPublicUrl(filePath).data.publicUrl;
+        // 🔁 Call Edge Function to set owner
+        const functionUrl = `https://${SUPABASE_URL.split('//')[1]}/functions/v1/set-avatar-owner`;
+        const res = await fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            user_id: session.user.id,
+            file_path: filePath,
+          }),
+        });
 
-      const { error: updateProfileError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
+        const responseJson = await res.json();
 
-      if (updateProfileError) {
-        console.error('Failed to update profile with avatar URL:', updateProfileError);
-      } else {
-        setAvatarUrl(publicUrl);
-        Alert.alert('Avatar updated!');
+        if (!res.ok) {
+          console.error('Failed to set owner on avatar object:', responseJson);
+        } else {
+          console.log('✅ Owner set successfully:', responseJson);
+        }
+
+        // 🎯 Get public URL
+        const { data: urlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        const publicUrl = urlData.publicUrl;
+
+        console.log('Uploaded file path:', filePath);
+        console.log('Public URL:', publicUrl);
+
+        const { error: updateProfileError } = await supabase
+          .from('profiles')
+          .update({ avatar_url: publicUrl })
+          .eq('id', session.user.id);
+
+        if (updateProfileError) {
+          console.error('Failed to update avatar URL:', updateProfileError);
+          Alert.alert('Error', 'Failed to save avatar URL.');
+        } else {
+          setAvatarUrl(publicUrl);
+          Alert.alert('Avatar Updated', 'Your avatar has been updated.');
+        }
+      } catch (err) {
+        console.error('Unexpected error during image upload:', err);
+        Alert.alert('Error', 'An unexpected error occurred during image upload.');
       }
     }
   };
@@ -105,9 +172,19 @@ export default function AccountSettingsScreen() {
   return (
     <View style={styles.container}>
       {avatarUrl ? (
-        <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+        <Image
+          source={{ uri: avatarUrl }}
+          style={styles.avatar}
+          onError={() => {
+            console.warn('Failed to load avatar image from URL:', avatarUrl);
+            Alert.alert('Error', 'Could not load avatar image.');
+          }}
+        />
       ) : (
-        <TouchableOpacity style={[styles.avatar, styles.placeholder]} onPress={handlePickImage}>
+        <TouchableOpacity
+          style={[styles.avatar, styles.placeholder]}
+          onPress={handlePickImage}
+        >
           <Text style={styles.avatarText}>+</Text>
         </TouchableOpacity>
       )}

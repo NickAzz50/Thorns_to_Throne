@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  StyleSheet,
+  ScrollView,
+} from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/src/context/AuthContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen() {
   const { session } = useAuth();
   const [firstName, setFirstName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [verse, setVerse] = useState<{ text: string; reference: string } | null>(null);
+  const [currentUTCDate, setCurrentUTCDate] = useState(getUTCDate());
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -29,47 +35,48 @@ export default function HomeScreen() {
     fetchProfile();
   }, [session]);
 
+  // Get verse based on UTC date
   useEffect(() => {
-    const fetchOrLoadVerse = async () => {
-      const todayKey = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+    const fetchVerse = async () => {
       try {
-        const cached = await AsyncStorage.getItem('verseOfTheDay');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed.date === todayKey) {
-            setVerse(parsed.verse);
-            return;
-          }
-        }
-
         const res = await fetch('https://beta.ourmanna.com/api/v1/get?format=json');
         const json = await res.json();
         const det = json.verse.details;
         const newVerse = { text: det.text, reference: det.reference };
-
-        await AsyncStorage.setItem(
-          'verseOfTheDay',
-          JSON.stringify({ date: todayKey, verse: newVerse })
-        );
-
         setVerse(newVerse);
       } catch (err) {
         console.error('Verse fetch error:', err);
       }
     };
 
-    fetchOrLoadVerse();
-  }, []);
+    fetchVerse();
+  }, [currentUTCDate]);
 
-  const getFormattedDate = () => {
+  // Timer to update date at midnight UTC
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newDate = getUTCDate();
+      if (newDate !== currentUTCDate) {
+        setCurrentUTCDate(newDate);
+      }
+    }, 60 * 1000); // check every minute
+
+    return () => clearInterval(interval);
+  }, [currentUTCDate]);
+
+  function getUTCDate(): string {
+    return new Date().toISOString().split('T')[0]; // UTC "YYYY-MM-DD"
+  }
+
+  function getFormattedLocalDate(): string {
     return new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
-  };
+  }
 
-  if (loading) {
+  if (loading || !verse) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator />
@@ -83,13 +90,11 @@ export default function HomeScreen() {
         {firstName ? `Welcome, ${firstName}!` : 'Welcome!'}
       </Text>
 
-      {verse && (
-        <View style={styles.verseBox}>
-          <Text style={styles.dateText}>{getFormattedDate()}</Text>
-          <Text style={styles.verseText}>"{verse.text}"</Text>
-          <Text style={styles.referenceText}>— {verse.reference}</Text>
-        </View>
-      )}
+      <View style={styles.verseBox}>
+        <Text style={styles.dateText}>{getFormattedLocalDate()}</Text>
+        <Text style={styles.verseText}>"{verse.text}"</Text>
+        <Text style={styles.referenceText}>— {verse.reference}</Text>
+      </View>
     </ScrollView>
   );
 }
