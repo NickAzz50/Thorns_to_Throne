@@ -1,21 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
 import { View, Pressable, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const routeConfigs: Record<string, { label: string; icon: string }> = {
-  messages: { label: 'Messages', icon: 'chatbubble-ellipses-outline' },
   index: { label: 'Home', icon: 'home-outline' },
+  messages: { label: 'Messages', icon: 'chatbubble-ellipses-outline' },
+  create_post: { label: 'Post', icon: 'add-circle-outline' },
+  search: { label: 'Search', icon: 'search-outline' },
   account: { label: 'Account', icon: 'person-outline' },
 };
 
 export default function CustomTabBar({ state, descriptors, navigation }: any) {
-  return (
-    <View style={styles.container}>
-      {state.routes.map((route: any, index: number) => {
-        const { name } = route;
-        const config = routeConfigs[name];
-        if (!config) return null;
+  const insets = useSafeAreaInsets();
+  const orderedTabs = ['index', 'messages', 'create_post', 'search', 'account'];
 
-        const isFocused = state.index === index;
+  return (
+    <View style={[styles.container, { bottom: insets.bottom + 20 }]}>
+      {orderedTabs.map((name, index) => {
+        const route = state.routes.find((r: any) => r.name === name);
+        if (!route) return null;
+
+        const config = routeConfigs[name];
+        const isFocused = state.index === state.routes.findIndex((r: any) => r.name === name);
 
         return (
           <Pressable
@@ -23,11 +29,11 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
             onPress={() => {
               if (!isFocused) navigation.navigate(name);
             }}
-            style={styles.tab}
+            style={[styles.tab, name === 'create_post' && styles.centerTab]}
           >
             <Ionicons
               name={config.icon as any}
-              size={24}
+              size={name === 'create_post' ? 30 : 24}
               color={isFocused ? '#149fa8' : '#999'}
             />
             <Text style={[styles.label, isFocused && { color: '#149fa8' }]}>
@@ -43,7 +49,6 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 30,
     left: 24,
     right: 24,
     flexDirection: 'row',
@@ -58,17 +63,20 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 14,
-    overflow: 'hidden',
+    shadowRadius: 6,
+    elevation: 5,
   },
   tab: {
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerTab: {
+    transform: [{ translateY: -4 }],
   },
   label: {
-    fontFamily: 'Prata',
-    fontSize: 12,
+    fontSize: 10,
+    marginTop: 2,
     color: '#999',
-    marginTop: 4,
+    fontFamily: 'Prata_400Regular',
   },
 });

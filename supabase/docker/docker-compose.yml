@@ -1,0 +1,15 @@
+version: '3.6'
+
+services:
+  db:
+    image: supabase/postgres:15.1.0.84
+    restart: always
+    ports:
+      - 54322:5432
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - supabase-db-volume:/var/lib/postgresql/data
+
+volumes:
+  supabase-db-volume:

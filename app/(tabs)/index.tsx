@@ -5,9 +5,11 @@ import {
   ActivityIndicator,
   StyleSheet,
   ScrollView,
+  SafeAreaView,
 } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/src/context/AuthContext';
+import { format } from 'date-fns';
 
 export default function HomeScreen() {
   const { session } = useAuth();
@@ -35,7 +37,6 @@ export default function HomeScreen() {
     fetchProfile();
   }, [session]);
 
-  // Get verse based on UTC date
   useEffect(() => {
     const fetchVerse = async () => {
       try {
@@ -52,101 +53,90 @@ export default function HomeScreen() {
     fetchVerse();
   }, [currentUTCDate]);
 
-  // Timer to update date at midnight UTC
   useEffect(() => {
     const interval = setInterval(() => {
       const newDate = getUTCDate();
       if (newDate !== currentUTCDate) {
         setCurrentUTCDate(newDate);
       }
-    }, 60 * 1000); // check every minute
-
+    }, 60 * 1000);
     return () => clearInterval(interval);
   }, [currentUTCDate]);
 
-  function getUTCDate(): string {
-    return new Date().toISOString().split('T')[0]; // UTC "YYYY-MM-DD"
-  }
-
-  function getFormattedLocalDate(): string {
-    return new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  }
-
-  if (loading || !verse) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
+  const todayFormatted = format(new Date(), 'MMMM d, yyyy');
 
   return (
-    <ScrollView contentContainerStyle={styles.container} style={{ backgroundColor: 'white' }}>
-      <Text style={styles.welcome}>
-        {firstName ? `Welcome, ${firstName}!` : 'Welcome!'}
-      </Text>
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.welcomeText}>
+          Welcome{firstName ? `, ${firstName}` : ''}!
+        </Text>
 
-      <View style={styles.verseBox}>
-        <Text style={styles.dateText}>{getFormattedLocalDate()}</Text>
-        <Text style={styles.verseText}>"{verse.text}"</Text>
-        <Text style={styles.referenceText}>— {verse.reference}</Text>
-      </View>
-    </ScrollView>
+        <View style={styles.verseContainer}>
+          <Text style={styles.verseDate}>Verse for {todayFormatted}</Text>
+          {verse ? (
+            <>
+              <Text style={styles.verseText}>"{verse.text}"</Text>
+              <Text style={styles.verseRef}>— {verse.reference}</Text>
+            </>
+          ) : (
+            <ActivityIndicator size="small" color="#149fa8" />
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
+function getUTCDate(): string {
+  const now = new Date();
+  return now.toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   container: {
-    flexGrow: 1,
-    backgroundColor: 'white',
-    paddingTop: 48,
-    paddingHorizontal: 32,
-    alignItems: 'center',
+    paddingTop: 30,
+    paddingHorizontal: 20,
+    paddingBottom: 100,
   },
-  welcome: {
+  welcomeText: {
+    fontSize: 24,
     fontFamily: 'Prata',
-    fontSize: 20,
     marginBottom: 24,
-    textAlign: 'center',
   },
-  verseBox: {
-    borderWidth: 2,
-    borderColor: '#444',
-    borderRadius: 14,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    backgroundColor: '#fefefe',
-    width: '100%',
-    maxWidth: 400,
+  verseContainer: {
+    backgroundColor: '#fff',
+    borderColor: '#149fa8',
+    borderWidth: 1.5,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  dateText: {
-    fontFamily: 'Prata',
+  verseDate: {
     fontSize: 14,
+    color: '#149fa8',
+    fontFamily: 'Prata',
     marginBottom: 8,
-    color: '#666',
     textAlign: 'center',
   },
   verseText: {
+    fontSize: 18,
+    fontFamily: 'Prata',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  verseRef: {
     fontFamily: 'Prata',
     fontSize: 16,
-    fontStyle: 'italic',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  referenceText: {
-    fontFamily: 'Prata',
-    fontSize: 14,
     textAlign: 'right',
-    color: '#444',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'white',
+    color: '#149fa8',
   },
 });

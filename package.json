@@ -13,15 +13,22 @@
     "preset": "jest-expo"
   },
   "dependencies": {
+    "@expo-google-fonts/great-vibes": "^0.4.0",
+    "@expo-google-fonts/prata": "^0.4.0",
     "@expo/vector-icons": "^14.1.0",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-navigation/native": "^7.1.6",
     "@supabase/supabase-js": "^2.50.0",
+    "date-fns": "^4.1.0",
     "expo": "~53.0.10",
+    "expo-auth-session": "~6.2.0",
+    "expo-file-system": "~18.1.10",
     "expo-font": "~13.3.1",
+    "expo-image-picker": "~16.1.4",
     "expo-linking": "~7.1.5",
+    "expo-random": "^14.0.1",
     "expo-router": "~5.0.7",
-    "expo-splash-screen": "~0.30.9",
+    "expo-splash-screen": "^0.30.9",
     "expo-status-bar": "~2.2.3",
     "expo-system-ui": "~5.0.8",
     "expo-web-browser": "~14.1.6",
@@ -32,9 +39,7 @@
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
-    "react-native-web": "~0.20.0",
-    "expo-image-picker": "~16.1.4",
-    "expo-file-system": "~18.1.10"
+    "react-native-web": "~0.20.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

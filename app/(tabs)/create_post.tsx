@@ -1,9 +1,9 @@
 import { View, Text, StyleSheet } from 'react-native';
 
-export default function SettingsScreen() {
+export default function CreatePostScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Messages screen coming soon...</Text>
+      <Text style={styles.text}>Create a new post here...</Text>
     </View>
   );
 }

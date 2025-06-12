@@ -1,9 +1,9 @@
 import { View, Text, StyleSheet } from 'react-native';
 
-export default function SettingsScreen() {
+export default function SearchScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Messages screen coming soon...</Text>
+      <Text style={styles.text}>Search screen coming soon...</Text>
     </View>
   );
 }

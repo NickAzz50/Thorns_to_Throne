@@ -20,14 +20,22 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      console.log('Login response:', { data, error });
 
-    if (error || !data.session?.user) {
-      Alert.alert('Login failed', error?.message || 'Unknown error');
-      return;
+      if (error || !data.session?.user) {
+        console.log('RAW ERROR:', error);
+        console.log('RAW MESSAGE:', error?.message);
+        Alert.alert('Login failed', error?.message || 'Unknown error');
+        return;
+      }
+
+      router.replace('/(tabs)');
+    } catch (err) {
+      console.log('Caught error:', err);
+      Alert.alert('Exception', String(err));
     }
-
-    router.replace('/');
   };
 
   return (
@@ -36,8 +44,24 @@ export default function LoginScreen() {
       style={{ flex: 1 }}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 16, backgroundColor: 'white' }}>
-          <Text style={{ fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 }}>Login</Text>
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: 'center',
+            paddingHorizontal: 16,
+            backgroundColor: 'white',
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 24,
+              fontWeight: 'bold',
+              textAlign: 'center',
+              marginBottom: 24,
+            }}
+          >
+            Login
+          </Text>
 
           <TextInput
             placeholder="Email"
@@ -45,14 +69,26 @@ export default function LoginScreen() {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
-            style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12 }}
+            style={{
+              borderWidth: 1,
+              borderColor: '#ccc',
+              borderRadius: 8,
+              padding: 12,
+              marginBottom: 12,
+            }}
           />
           <TextInput
             placeholder="Password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12 }}
+            style={{
+              borderWidth: 1,
+              borderColor: '#ccc',
+              borderRadius: 8,
+              padding: 12,
+              marginBottom: 12,
+            }}
           />
           <Button title="Log In" onPress={handleLogin} />
           <Text style={{ marginTop: 16, textAlign: 'center' }}>

@@ -15,7 +15,7 @@ export default function AccountScreen() {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('first_name, last_name, uname, avatar_url, bio, following_count, follower_count')
+      .select('first_name, last_name, uname, avatar_url, bio, following_count, follower_count, school, favorite_song')
       .eq('id', session.user.id)
       .single();
 
@@ -26,7 +26,6 @@ export default function AccountScreen() {
     }
   };
 
-  // Re-fetch profile whenever screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchProfile();
@@ -45,12 +44,10 @@ export default function AccountScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Settings button */}
       <TouchableOpacity style={styles.settingsIcon} onPress={() => router.push('/account_settings')}>
         <Ionicons name="settings-outline" size={24} color="#149fa8" />
       </TouchableOpacity>
 
-      {/* Profile picture or fallback */}
       {profile.avatar_url ? (
         <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
       ) : (
@@ -59,16 +56,11 @@ export default function AccountScreen() {
         </View>
       )}
 
-      {/* Name & Username */}
       <Text style={styles.name}>{fullName}</Text>
       <Text style={styles.username}>@{profile.uname}</Text>
 
-      {/* Bio (if present) */}
-      {profile.bio ? (
-        <Text style={styles.bio}>{profile.bio}</Text>
-      ) : null}
+      {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
 
-      {/* Follower stats */}
       <View style={styles.statsRow}>
         <View style={styles.statBlock}>
           <Text style={styles.statNumber}>{profile.following_count || 0}</Text>
@@ -79,6 +71,14 @@ export default function AccountScreen() {
           <Text style={styles.statLabel}>Followers</Text>
         </View>
       </View>
+
+      {profile.school ? (
+        <Text style={styles.extraInfo}>🎓 {profile.school}</Text>
+      ) : null}
+
+      {profile.favorite_song ? (
+        <Text style={styles.extraInfo}>🎵 {profile.favorite_song}</Text>
+      ) : null}
     </View>
   );
 }
@@ -149,5 +149,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Prata',
     color: '#555',
+  },
+  extraInfo: {
+    fontSize: 16,
+    fontFamily: 'Prata',
+    color: '#444',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

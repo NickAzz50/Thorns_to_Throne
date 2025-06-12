@@ -1,3 +1,4 @@
+// NOTE: If you're using `/app/(tabs)/account_settings.tsx`, make sure the path matches
 import {
   View,
   Text,
@@ -14,10 +15,12 @@ import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/src/context/AuthContext';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase-constants';
+import ConnectSpotifyButton from '@/components/ConnectSpotifyButton'; // ✅ uses default import
 
 export default function AccountSettingsScreen() {
   const { session } = useAuth();
   const [bio, setBio] = useState('');
+  const [school, setSchool] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,7 +29,7 @@ export default function AccountSettingsScreen() {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('bio, avatar_url')
+        .select('bio, avatar_url, school')
         .eq('id', session.user.id)
         .single();
 
@@ -35,6 +38,7 @@ export default function AccountSettingsScreen() {
         Alert.alert('Error', 'Failed to load profile.');
       } else if (data) {
         setBio(data.bio || '');
+        setSchool(data.school || '');
         setAvatarUrl(data.avatar_url);
       }
     };
@@ -47,7 +51,7 @@ export default function AccountSettingsScreen() {
 
     const { error } = await supabase
       .from('profiles')
-      .update({ bio })
+      .update({ bio, school })
       .eq('id', session.user.id);
 
     if (error) {
@@ -101,10 +105,6 @@ export default function AccountSettingsScreen() {
           },
         });
 
-        console.log('Uploading with UID:', session.user.id);
-        console.log('File path:', filePath);
-        console.log('Byte length:', byteArray.length);
-
         const { error: uploadError } = await supabaseAuthClient.storage
           .from('avatars')
           .upload(filePath, byteArray.buffer, {
@@ -118,7 +118,6 @@ export default function AccountSettingsScreen() {
           return;
         }
 
-        // 🔁 Call Edge Function to set owner
         const functionUrl = `https://${SUPABASE_URL.split('//')[1]}/functions/v1/set-avatar-owner`;
         const res = await fetch(functionUrl, {
           method: 'POST',
@@ -133,22 +132,15 @@ export default function AccountSettingsScreen() {
         });
 
         const responseJson = await res.json();
-
         if (!res.ok) {
           console.error('Failed to set owner on avatar object:', responseJson);
-        } else {
-          console.log('✅ Owner set successfully:', responseJson);
         }
 
-        // 🎯 Get public URL
         const { data: urlData } = supabase.storage
           .from('avatars')
           .getPublicUrl(filePath);
 
         const publicUrl = urlData.publicUrl;
-
-        console.log('Uploaded file path:', filePath);
-        console.log('Public URL:', publicUrl);
 
         const { error: updateProfileError } = await supabase
           .from('profiles')
@@ -172,19 +164,9 @@ export default function AccountSettingsScreen() {
   return (
     <View style={styles.container}>
       {avatarUrl ? (
-        <Image
-          source={{ uri: avatarUrl }}
-          style={styles.avatar}
-          onError={() => {
-            console.warn('Failed to load avatar image from URL:', avatarUrl);
-            Alert.alert('Error', 'Could not load avatar image.');
-          }}
-        />
+        <Image source={{ uri: avatarUrl }} style={styles.avatar} />
       ) : (
-        <TouchableOpacity
-          style={[styles.avatar, styles.placeholder]}
-          onPress={handlePickImage}
-        >
+        <TouchableOpacity style={[styles.avatar, styles.placeholder]} onPress={handlePickImage}>
           <Text style={styles.avatarText}>+</Text>
         </TouchableOpacity>
       )}
@@ -201,6 +183,20 @@ export default function AccountSettingsScreen() {
         placeholder="Tell us something about yourself"
         multiline
       />
+
+      <Text style={styles.label}>School</Text>
+      <TextInput
+        style={styles.input}
+        value={school}
+        onChangeText={setSchool}
+        placeholder="Enter your school"
+      />
+
+      <Text style={styles.label}>Favorite Song</Text>
+      <View style={{ alignItems: 'center', marginBottom: 20 }}>
+        <ConnectSpotifyButton />
+      </View>
+
       <Button title="Save Changes" onPress={handleSave} />
     </View>
   );

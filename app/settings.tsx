@@ -1,9 +1,10 @@
+// app/settings.tsx
 import { View, Text, StyleSheet } from 'react-native';
 
 export default function SettingsScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Messages screen coming soon...</Text>
+      <Text style={styles.text}>Settings screen coming soon...</Text>
     </View>
   );
 }
@@ -17,7 +18,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 18,
-    fontFamily: 'Prata_400Regular',
+    fontFamily: 'Prata',
     color: '#333',
   },
 });
